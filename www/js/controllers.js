@@ -1,7 +1,7 @@
 angular.module('starter.controllers', [])
 
 .controller('DashCtrl', function($scope, $http, $ionicPopup, $ionicPlatform, $ionicModal, $sce) {
-  var httpConfig = { timeout: 1000 }
+  var httpConfig = { timeout: 5000 }
 
   $scope.doRefresh = function() {
     $scope.things.forEach(function(thing) {
