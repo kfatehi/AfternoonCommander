@@ -1,6 +1,6 @@
 angular.module('starter.controllers', [])
 
-.controller('DashCtrl', function($scope, $http, $ionicPopup, $ionicPlatform, $ionicModal, $sce) {
+.controller('DashCtrl', function($scope, $http, $ionicPopup, $ionicPlatform, $ionicModal, $sce, $timeout) {
   var httpConfig = { timeout: 5000 }
 
   $scope.doRefresh = function() {
@@ -20,7 +20,9 @@ angular.module('starter.controllers', [])
       var src = self.imgSrc;
       $scope.events = [];
       self.imgSrc = ''; // for refresh purposes
-      self.imgSrc = "http://camera:8080/";
+      $timeout(function() {
+        self.imgSrc = "http://camera:8080/";
+      }, 200)
       $http.get("http://lab:8000/movies").success(function(events) {
         if (events.length) {
           events.forEach(function(m) {
