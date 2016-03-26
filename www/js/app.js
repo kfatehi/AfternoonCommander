@@ -7,6 +7,27 @@
 // 'starter.controllers' is found in controllers.js
 angular.module('starter', ['ionic', 'starter.controllers', 'starter.services'])
 
+.directive('script', function($http, $sce, $ionicModal) {
+  return {
+    restrict: 'E',
+    scope: false,
+    link: function(scope, elem, attr) {
+      if (attr.type === 'text/javascript-lazy') {
+        var code = elem.text();
+        var f = new Function(code);
+        setTimeout(function() {
+          f.bind({
+            '$http': $http,
+            '$scope': scope,
+            '$sce': $sce,
+            '$ionicModal': $ionicModal
+          })();
+        }, 250);
+      }
+    }
+  };
+})
+
 .run(function($ionicPlatform) {
   $ionicPlatform.ready(function() {
     // Hide the accessory bar by default (remove this to show the accessory bar above the keyboard

@@ -1,109 +1,125 @@
 angular.module('starter.controllers', [])
 
-.controller('DashCtrl', function($scope, $http, $ionicPopup, $ionicPlatform, $ionicModal, $sce, $timeout) {
-  var httpConfig = { timeout: 5000 }
+.controller('DashCtrl', function($scope, $http, $ionicPopup, $ionicPlatform, $ionicModal, $sce, $timeout, $templateCache) {
+  $scope.things = [];
 
   $scope.doRefresh = function() {
-    $scope.things.forEach(function(thing) {
-      if (thing.init && !thing.disabled) thing.init();
-      setTimeout(function() {
-        $scope.$broadcast('scroll.refreshComplete');
-      }, 2000);
-    });
+    initThings();
+    $scope.$broadcast('scroll.refreshComplete');
   }
 
-  $scope.things = [{
-    label: "Camera: Entrance",
-    state: "Last Event: unknown",
-    init: function() {
-      var self = this;
-      var src = self.imgSrc;
-      $scope.events = [];
-      self.imgSrc = ''; // for refresh purposes
+  function ImageWidget(src) {
+    this.type = 'image';
+
+    this.start = function() {
+      this.stop();
       $timeout(function() {
-        self.imgSrc = "http://camera:8080/";
-      }, 200)
-      $http.get("http://lab:8000/movies").success(function(events) {
-        if (events.length) {
-          events.forEach(function(m) {
-            $scope.events.push({
-              time: new Date(m.time).toLocaleString(),
-              url: "http://lab:8000"+m.path
-            })
-          })
-          self.state = "Last Event: "+$scope.events[0].time
-        } else {
-          self.state = "Last Event: unknown"
-        }
-        $scope.setMovieURL = function(url) {
-          $scope.movieURL = $sce.trustAsResourceUrl(url);
-          $ionicModal.fromTemplateUrl('video-modal.html',{
-            scope: $scope
-          }).then(function(modal) {
-            $scope.closeVideoModal = function() { modal.hide() };
-            modal.show();
-          });
-        }
-      })
-    },
-    buttons: [{
-      text: "Events",
-      action: function() {
-        $ionicModal.fromTemplateUrl('events-modal.html',{
-          scope: $scope
-        }).then(function(modal) {
-          $scope.closeEventsModal = function() {
-            modal.hide();
-          };
-          modal.show();
-        });
-      }
-    }]
-  },{
-    label: "Garage Door",
-    state: "Status: unknown",
-    init: function() {
+        this.src = src;
+      }.bind(this), 1000)
+    }
+
+    this.stop = function() {
+      this.src = ""
+    }
+  }
+
+  function ModalWidget(label, url) {
+    this.type = 'modal';
+    this.label = label;
+
+    this.openModal = function() {
+      var modalScope = $scope.$new();
+      $ionicModal.fromTemplateUrl(url, {
+        scope: modalScope
+      }).then(function(modal) {
+        modalScope.close = function() {
+          modal.hide();
+          $timeout(function() {
+            $templateCache.remove(url)
+          }, 200);
+        };
+        modal.show();
+      });
+    }
+  }
+
+
+  function ButtonWidget(label, trigger, confirm) {
+    this.type = 'button';
+    this.label = label;
+
+    this.action = function() {
+      $ionicPopup.confirm(confirm).then(function(yes) {
+        if (!yes) return false;
+        $http(trigger).then(function(res) {}, function(res) {})
+      });
+    }
+  }
+
+  function PollStateWidget(fetch, map) {
+    this.type = 'poll-state';
+
+    this.start = function() {
       var self = this;
+      function nullState() { self.state = null }
       function fetchState() {
-        $http.post('http://garage:4000/digital_read/4', {}, httpConfig)
-        .success(function(res) {
-          if (res.value === 1) {
-            self.state = "Status: Open"
-          } else if (res.value === 0) {
-            self.state = "Status: Closed"
-          }
-        })
-        .error(function() {
-          self.state = "Status: unknown"
-        })
+        $http(fetch).then(function(res) {
+          self.state = map[res.data.value]
+        }, nullState)
       }
+      this.interval = setInterval(fetchState, 5000);
+      self.state = "Please wait..."
       fetchState();
-      if (self.interval) clearInterval(self.interval); // for refresh purposes
-      self.interval = setInterval(fetchState, 5000);
-    },
-    buttons: [{
-      text: "Activate",
-      action: function() {
-        $ionicPopup.confirm({
-          title: "Safety Check",
-          template: "Are you sure it is safe to activate the garage door?",
-          okText: "Yes. Do it."
-        }).then(function(yes) {
-          if (yes) {
-            $http.post('http://garage:4000/digital_write/18/1', {}, httpConfig).success(function() {
-              console.log('wrote 1');
-              setTimeout(function() {
-                $http.post('http://garage:4000/digital_write/18/0', {}, httpConfig).success(function() {
-                  console.log('wrote 0');
-                })
-                .error(function() {
-                  alert('failed to write 0! stuck in on position!')
-                })
-              }, 800)
-            }).error(function() { alert('failed to write 1!') })
-          }
-        })
-      }
-    }]
-  }];
+    }
+
+    this.stop = function() { clearInterval(this.interval) }
+  }
+
+  function createWidget(config) {
+    if (config.type === 'poll-state') {
+      return new PollStateWidget(config.fetch, config.map);
+    } else if (config.type === 'button') {
+      return new ButtonWidget(config.label, config.trigger, config.confirm);
+    } else if (config.type === 'modal') {
+      return new ModalWidget(config.label, config.url);
+    } else if (config.type === 'image') {
+      return new ImageWidget(config.src);
+    }
+  }
+
+  function Thing(config) {
+    this.loading = true;
+    this.label = config.label;
+    var widgets = this.widgets = [];
+
+    this.start = function() {
+      config.widgets.forEach(function(wconf) {
+        var widget = createWidget(wconf);
+        widgets.push(widget);
+        if (widget.start) widget.start();
+      });
+      this.loading = false;
+    }
+
+    this.stop = function() {
+      this.widgets.forEach(function(widget) {
+        if (widget.stop) widget.stop();
+      });
+    }
+  }
+
+  function initThings() {
+    $scope.things.forEach(function(thing) { thing.stop(); });
+    $scope.things = [];
+    $http.get("http://lab:8001/things").success(function(configs) {
+      configs.forEach(function(config) {
+        var thing = new Thing(config);
+        $scope.things.push(thing);
+        thing.start();
+      });
+    })
+  }
+
+  initThings();
+
 })

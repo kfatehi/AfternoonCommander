@@ -1,49 +1,32 @@
-<script id="events-modal.html" type="text/ng-template">
-<ion-modal-view>
-    <ion-header-bar>
-      <h1 class="title">Events</h1>
-      <div class="button button-clear" ng-click="closeEventsModal()"><span class="icon ion-close"></span></div>
-    </ion-header-bar>
-    <ion-content>
-      <ion-list>
-        <ion-item ng-click="setMovieURL(event.url)" ng-repeat="event in events">
-          {{event.time}}
-        </ion-item>
-      </ion-list>
-    </ion-content>
-  </ion-modal-view>
-</script>
-
-<script id="video-modal.html" type="text/ng-template">
-<ion-modal-view>
-    <ion-header-bar>
-      <h1 class="title">Video</h1>
-      <div class="button button-clear" ng-click="closeVideoModal()"><span class="icon ion-close"></span></div>
-    </ion-header-bar>
-    <ion-content>
-      <video style="width:100%" autoplay>
-        <source src="{{movieURL}}" type="video/mp4">
-      </video>
-    </ion-content>
-  </ion-modal-view>
-</script>
-
-
 <ion-view view-title="Dashboard">
   <ion-content class="padding">
     <ion-refresher
       pulling-text="Pull to refresh..."
       on-refresh="doRefresh()">
     </ion-refresher>
-    <div class="list card" ng-repeat="thing in things" ng-if="!thing.disabled" ng-init="thing.init()">
+    <div class="list card" ng-repeat="thing in things">
       <div class="item item-divider">{{ thing.label }}</div>
       <div class="item item-body">
         <ion-spinner ng-show="thing.loading" icon="spiral"></ion-spinner>
-        <img ng-show="thing.imgSrc" ng-src="{{thing.imgSrc}}" style="max-width: 100%;"/>
-        <div ng-if="thing.state">{{ thing.state }}</div>
-        <button class="button button-full button-positive" ng-click="btn.action()" ng-repeat="btn in thing.buttons">
-          {{btn.text}}
-        </button>
+
+        <div ng-repeat="widget in thing.widgets">
+          <div ng-if="widget.type === 'poll-state'">
+            <div>State: {{ widget.state || "Unknown" }}</div>
+          </div>
+          <div ng-if="widget.type === 'button'">
+            <button class="button button-full button-positive" ng-click="widget.action()">
+              {{widget.label}}
+            </button>
+          </div>
+          <div ng-if="widget.type === 'modal'">
+            <button class="button button-full button-positive" ng-click="widget.openModal()">
+              {{widget.label}}
+            </button>
+          </div>
+          <div ng-if="widget.type === 'image'">
+            <img ng-src="{{widget.src}}" style="max-width: 100%;"/>
+          </div>
+        </div>
       </div>
     </div>
   </ion-content>
