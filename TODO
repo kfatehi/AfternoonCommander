@@ -1,3 +1,0 @@
-configurable thing-registry url
-cache thing-registry manifest so we dont lose widgets when its down
-store thing registry cache manifest and main config (registry url and whether to fetch at all) as separate config files in the itunes app folder, making running a registry optional
